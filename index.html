@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>البومة</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0d0a1a;
+    color: #f5ecd7;
+    font-family: 'Cairo', sans-serif;
+    height: 100dvh;
+    width: 100vw;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    cursor: crosshair;
+  }
+
+  .stars {
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 40%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 55% 10%, rgba(255,255,255,0.7) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 60%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 25%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 20% 75%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 45% 85%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(2px 2px at 15% 30%, rgba(255,220,180,0.5) 0%, transparent 100%),
+      radial-gradient(2px 2px at 80% 45%, rgba(255,220,180,0.4) 0%, transparent 100%);
+    pointer-events: none; z-index: 0;
+  }
+
+  .moon {
+    position: fixed; top: 40px; left: 50px;
+    width: 70px; height: 70px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff8dc, #f5c842);
+    box-shadow: 0 0 30px rgba(245,200,66,0.4), 0 0 60px rgba(245,200,66,0.15);
+    pointer-events: none; z-index: 0;
+  }
+
+  .center-text {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center; z-index: 1;
+    pointer-events: none; width: 90vw;
+  }
+
+  .center-text .top-line {
+    font-size: clamp(0.9rem, 3vw, 1.3rem);
+    color: rgba(245,236,215,0.4);
+    margin-bottom: 0.5rem; letter-spacing: 0.05em;
+  }
+
+  .center-text .main-line {
+    font-size: clamp(1.5rem, 5.5vw, 2.8rem);
+    font-weight: 900; color: #f5ecd7; line-height: 1.5;
+  }
+
+  .center-text .main-line .highlight {
+    color: #f5c842;
+    text-shadow: 0 0 20px rgba(245,200,66,0.5);
+  }
+
+  .center-text .bottom-line {
+    font-size: clamp(0.8rem, 2.5vw, 1rem);
+    color: rgba(245,236,215,0.3); margin-top: 0.8rem;
+  }
+
+  #owl {
+    position: fixed;
+    font-size: 72px;
+    line-height: 1;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 50;
+    filter: drop-shadow(0 0 10px rgba(245,200,66,0.3));
+    will-change: left, top;
+  }
+
+  #taunt {
+    position: fixed; bottom: 2.5rem; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 100px; padding: 0.5rem 1.4rem;
+    font-size: 0.9rem; color: rgba(245,236,215,0.7);
+    white-space: nowrap; z-index: 10;
+    opacity: 0; transition: opacity 0.5s; font-weight: 700;
+  }
+  #taunt.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="stars"></div>
+<div class="moon"></div>
+
+<div class="center-text">
+  <p class="main-line">
+    لو معرفتيش تمسكي البومة<br>
+    <span class="highlight">هتجيبي بوسة 💋</span>
+  </p>
+  <p class="bottom-line">دوسى على البومه اجرى وراها حاولى تمسكيها</p>
+</div>
+
+<div id="owl">🦉</div>
+<div id="taunt"></div>
+
+<script>
+const owl     = document.getElementById('owl');
+const tauntEl = document.getElementById('taunt');
+
+const taunts = [
+  'بومه برضو مش هتعرفى',
+  'هتجيبى يعنى هتجيبى',
+  'البومة أسرع منك',
+  'خسارة كنتى قريبة ',
+];
+
+let px = -999, py = -999;
+
+// owl real position
+let ex, ey;
+// owl velocity
+let vx = 0, vy = 0;
+
+let tauntTimer  = null;
+let lastTaunt   = 0;
+
+const FLEE_RADIUS = 170;
+const MARGIN      = 85;
+const FRICTION    = 0.82;   // how quickly velocity fades when not fleeing
+const MAX_SPEED   = 18;
+
+function W() { return window.innerWidth;  }
+function H() { return window.innerHeight; }
+function dist(x1,y1,x2,y2) { return Math.sqrt((x1-x2)**2+(y1-y2)**2); }
+function clamp(v,lo,hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function showTaunt() {
+  const now = Date.now();
+  if (now - lastTaunt < 2000) return;
+  lastTaunt = now;
+  if (tauntTimer) clearTimeout(tauntTimer);
+  tauntEl.textContent = taunts[Math.floor(Math.random() * taunts.length)];
+  tauntEl.classList.add('show');
+  tauntTimer = setTimeout(() => tauntEl.classList.remove('show'), 2400);
+}
+
+// Pointer
+document.addEventListener('mousemove', e => { px = e.clientX; py = e.clientY; });
+document.addEventListener('touchmove', e => {
+  e.preventDefault();
+  px = e.touches[0].clientX; py = e.touches[0].clientY;
+}, { passive: false });
+document.addEventListener('touchstart', e => {
+  e.preventDefault();
+  px = e.touches[0].clientX; py = e.touches[0].clientY;
+}, { passive: false });
+
+function loop() {
+  const d = dist(px, py, ex, ey);
+
+  if (d < FLEE_RADIUS && d > 0) {
+    // Push force — stronger the closer the pointer
+    const force = (1 - d / FLEE_RADIUS) * 2.8;
+    const angle = Math.atan2(ey - py, ex - px);
+    vx += Math.cos(angle) * force * 3.5;
+    vy += Math.sin(angle) * force * 3.5;
+
+    if (d < FLEE_RADIUS * 0.55) showTaunt();
+  }
+
+  // Friction
+  vx *= FRICTION;
+  vy *= FRICTION;
+
+  // Cap speed
+  const spd = Math.sqrt(vx*vx + vy*vy);
+  if (spd > MAX_SPEED) { vx = vx/spd*MAX_SPEED; vy = vy/spd*MAX_SPEED; }
+
+  // Move
+  ex += vx;
+  ey += vy;
+
+  // Wall bounce — smooth reflection
+  if (ex < MARGIN)        { ex = MARGIN;        vx = Math.abs(vx) * 0.6; }
+  if (ex > W() - MARGIN)  { ex = W() - MARGIN;  vx = -Math.abs(vx) * 0.6; }
+  if (ey < MARGIN)        { ey = MARGIN;        vy = Math.abs(vy) * 0.6; }
+  if (ey > H() - MARGIN)  { ey = H() - MARGIN;  vy = -Math.abs(vy) * 0.6; }
+
+  // Corner escape: if pointer is very close AND owl near wall, add perpendicular nudge
+  if (d < 90) {
+    const nearWallX = ex < MARGIN + 30 || ex > W() - MARGIN - 30;
+    const nearWallY = ey < MARGIN + 30 || ey > H() - MARGIN - 30;
+    if (nearWallX || nearWallY) {
+      // push sideways relative to flee direction
+      const angle = Math.atan2(ey - py, ex - px);
+      vx += Math.cos(angle + Math.PI/2) * 4;
+      vy += Math.sin(angle + Math.PI/2) * 4;
+    }
+  }
+
+  owl.style.left = ex + 'px';
+  owl.style.top  = ey + 'px';
+
+  requestAnimationFrame(loop);
+}
+
+// Start in the middle
+ex = W() / 2;
+ey = H() / 2;
+loop();
+</script>
+</body>
+</html>
