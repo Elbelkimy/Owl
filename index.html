@@ -145,7 +145,7 @@ function clamp(v,lo,hi) { return Math.max(lo, Math.min(hi, v)); }
 
 function showTaunt() {
   const now = Date.now();
-  if (now - lastTaunt < 2000) return;
+  if (now - lastTaunt < 800) return;
   lastTaunt = now;
   if (tauntTimer) clearTimeout(tauntTimer);
   tauntEl.textContent = taunts[Math.floor(Math.random() * taunts.length)];
